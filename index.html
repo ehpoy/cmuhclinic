@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中醫大附醫診間查詢工具</title>
+    <!-- 載入必要套件 CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body { 
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc; 
+        }
+        /* 進入動畫 */
+        .animate-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* 隱藏捲動條但保有功能 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+
+        // 診間資料庫 (包含最新修正項目)
+        const clinicData = [
+            // 癌症中心大樓 (I棟) - 修正後資料
+            { id: 31, room: "131-137", building: "癌症中心 (I棟)", floor: "1F", dept: "門診", note: "依使用者回饋修正" },
+            { id: 21, room: "281-290", building: "癌症中心 (I棟)", floor: "2F", dept: "癌症門診/綜合門診", note: "包含 286 診" },
+            
+            // 兒童醫院 (B棟) - 包含新增 9F 資料
+            { id: 1, room: "120-127", building: "兒童醫院 (B棟)", floor: "1F", dept: "兒科門診", note: "" },
+            { id: 2, room: "210", building: "兒童醫院 (B棟)", floor: "2F", dept: "健兒門診", note: "" },
+            { id: 3, room: "211-216", building: "兒童醫院 (B棟)", floor: "2F", dept: "兒科門診", note: "" },
+            { id: 4, room: "217", building: "兒童醫院 (B棟)", floor: "2F", dept: "血友病中心門診", note: "" },
+            { id: 32, room: "921-929", building: "兒童醫院 (B棟)", floor: "9F", dept: "門診", note: "新增項目" },
+
+            // 立夫醫療大樓 (C棟)
+            { id: 5, room: "221-239", building: "立夫醫療大樓 (C棟)", floor: "2F", dept: "綜合門診", note: "含風濕免疫、老人整合門診等" },
+            { id: 6, room: "250-260", building: "立夫醫療大樓 (C棟)", floor: "2F", dept: "綜合門診", note: "" },
+            { id: 7, room: "301-317", building: "立夫醫療大樓 (C棟)", floor: "3F", dept: "綜合門診", note: "" },
+            { id: 8, room: "320", building: "立夫醫療大樓 (C棟)", floor: "3F", dept: "門診", note: "" },
+            { id: 9, room: "B98", building: "立夫醫療大樓 (C棟)", floor: "5F", dept: "婦產科尿道動力室", note: "" },
+
+            // 復健醫療大樓 (G棟)
+            { id: 10, room: "171", building: "復健醫療大樓 (G棟)", floor: "1F", dept: "抹片室", note: "" },
+            { id: 11, room: "172-182", building: "復健醫療大樓 (G棟)", floor: "1F", dept: "婦產科、皮膚科門診", note: "" },
+            { id: 12, room: "C73", building: "復健醫療大樓 (G棟)", floor: "1F", dept: "婦產科內視鏡檢查室", note: "" },
+            { id: 13, room: "275-277", building: "復健醫療大樓 (G棟)", floor: "2F", dept: "復健部門診", note: "" },
+
+            // 急重症中心大樓 (H棟)
+            { id: 14, room: "100", building: "急重症中心 (H棟)", floor: "1F", dept: "國醫堂", note: "" },
+            { id: 15, room: "157", building: "急重症中心 (H棟)", floor: "1F", dept: "門診", note: "" },
+            { id: 16, room: "165-168", building: "急重症中心 (H棟)", floor: "1F", dept: "門診", note: "" },
+            { id: 17, room: "261-273", building: "急重症中心 (H棟)", floor: "2F", dept: "門診", note: "" },
+            { id: 18, room: "321-335", building: "急重症中心 (H棟)", floor: "3F", dept: "門診", note: "" },
+            { id: 19, room: "561-567", building: "急重症中心 (H棟)", floor: "5F", dept: "精神科門診", note: "" },
+            { id: 20, room: "613-618", building: "急重症中心 (H棟)", floor: "6F", dept: "腎臟醫學中心門診", note: "" },
+
+            // 眼耳鼻喉科醫學中心大樓 (K棟)
+            { id: 23, room: "801-809", building: "眼耳鼻喉大樓 (K棟)", floor: "1F", dept: "眼科門診", note: "" },
+            { id: 24, room: "812-828", building: "眼耳鼻喉大樓 (K棟)", floor: "2F", dept: "眼科門診", note: "" },
+            { id: 25, room: "831-840", building: "眼耳鼻喉大樓 (K棟)", floor: "3F", dept: "耳鼻喉部/全方位聽覺中心", note: "" },
+            { id: 26, room: "845-887", building: "眼耳鼻喉大樓 (K棟)", floor: "5F", dept: "牙醫部門診", note: "" },
+            { id: 27, room: "888-889", building: "眼耳鼻喉大樓 (K棟)", floor: "7F", dept: "近視雷射中心/門診", note: "" },
+
+            // 國際醫療教研服務中心 (J棟/質子中心)
+            { id: 28, room: "J101-J118", building: "質子治療中心 (J棟)", floor: "1F", dept: "綜合門診", note: "" },
+            { id: 29, room: "J001-J005", building: "質子治療中心 (J棟)", floor: "B1F", dept: "門診", note: "" },
+            { id: 30, room: "J021-J026", building: "質子治療中心 (J棟)", floor: "B2F", dept: "放射腫瘤部門診", note: "" },
+        ];
+
+        function App() {
+            const [searchTerm, setSearchTerm] = useState('');
+
+            // 當搜尋改變時，重新驅動 Lucide 圖示渲染
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [searchTerm]);
+
+            // 過濾邏輯
+            const filteredData = useMemo(() => {
+                if (!searchTerm) return clinicData;
+                const term = searchTerm.toLowerCase();
+                return clinicData.filter(item => 
+                    item.room.toLowerCase().includes(term) || 
+                    item.dept.toLowerCase().includes(term) ||
+                    item.building.toLowerCase().includes(term) ||
+                    item.floor.toLowerCase().includes(term)
+                );
+            }, [searchTerm]);
+
+            // 精確範圍匹配邏輯
+            const exactMatch = useMemo(() => {
+                if (!searchTerm) return null;
+                const cleanInput = searchTerm.replace(/\D/g, '');
+                if (!cleanInput) return null;
+                const num = parseInt(cleanInput);
+
+                return clinicData.find(item => {
+                    const itemRoomClean = item.room.replace(/[^\d-]/g, '');
+                    if (item.room.includes('-')) {
+                        const [start, end] = itemRoomClean.split('-').map(s => parseInt(s));
+                        return num >= start && num <= end;
+                    }
+                    return itemRoomClean === num.toString();
+                });
+            }, [searchTerm]);
+
+            return (
+                <div className="min-h-screen bg-slate-50 p-4 md:p-10">
+                    <div className="max-w-3xl mx-auto">
+                        {/* Header */}
+                        <header className="mb-10 text-center">
+                            <div className="flex justify-center mb-6">
+                                <div className="bg-blue-600 p-5 rounded-[2rem] text-white shadow-2xl shadow-blue-200">
+                                    <i data-lucide="building-2" className="w-10 h-10"></i>
+                                </div>
+                            </div>
+                            <h1 className="text-4xl font-black text-slate-800 mb-3 tracking-tighter">中醫大附醫 診間查詢</h1>
+                            <p className="text-slate-500 font-medium">快速查找各棟大樓門診位置</p>
+                        </header>
+
+                        {/* Search Section */}
+                        <div className="relative mb-10 group">
+                            <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
+                                <i data-lucide="search" className="h-6 w-6 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
+                            </div>
+                            <input
+                                type="text"
+                                className="block w-full pl-16 pr-6 py-6 border-none rounded-[2.5rem] bg-white shadow-2xl shadow-slate-200/60 text-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none placeholder-slate-300 font-medium"
+                                placeholder="輸入診間號碼 (如: 131, 286, 921)..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Hero Match Result */}
+                        {exactMatch && searchTerm && (
+                            <div className="mb-10 bg-blue-600 rounded-[3rem] p-10 text-white shadow-2xl shadow-blue-300 animate-in">
+                                <div className="flex items-center gap-3 mb-6 opacity-70">
+                                    <i data-lucide="navigation" className="w-6 h-6"></i>
+                                    <span className="text-sm font-bold tracking-widest uppercase">最佳匹配位置</span>
+                                </div>
+                                <div className="text-5xl font-black mb-4 tracking-tighter leading-tight">
+                                    {exactMatch.building}
+                                </div>
+                                <div className="flex items-baseline gap-4">
+                                    <span className="text-3xl font-bold">{exactMatch.floor}</span>
+                                    <span className="text-blue-300 text-2xl">/</span>
+                                    <span className="text-2xl font-medium opacity-90">{exactMatch.dept}</span>
+                                </div>
+                                {exactMatch.note && (
+                                    <div className="mt-8 pt-8 border-t border-blue-500/50 text-base opacity-80 flex items-start gap-3 italic">
+                                        <i data-lucide="info" className="w-5 h-5 mt-1 shrink-0"></i>
+                                        <span>{exactMatch.note}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Results Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            {filteredData.length > 0 ? (
+                                filteredData.map((item) => (
+                                    <div key={item.id} className="bg-white p-7 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-xl hover:border-blue-100 transition-all group animate-in">
+                                        <div className="flex justify-between items-start mb-5">
+                                            <span className="bg-slate-50 text-slate-400 px-4 py-1.5 rounded-2xl text-[10px] font-black tracking-widest uppercase group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                                診間 {item.room}
+                                            </span>
+                                            <span className="text-blue-600 font-black text-3xl tracking-tighter">{item.floor}</span>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div className="text-slate-800 font-bold text-xl leading-snug">
+                                                {item.building}
+                                            </div>
+                                            <div className="text-slate-400 text-sm flex items-center gap-2">
+                                                <i data-lucide="map-pin" className="w-4 h-4"></i>
+                                                <span className="font-medium">{item.dept}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="col-span-full py-24 text-center">
+                                    <i data-lucide="search-x" className="w-20 h-20 mx-auto text-slate-200 mb-6"></i>
+                                    <p className="text-slate-400 font-bold text-lg tracking-tight">查無相關診間，請更換關鍵字</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <footer className="mt-20 mb-12 pt-10 border-t border-slate-200 text-center">
+                            <p className="text-slate-400 text-sm leading-relaxed font-medium">
+                                資料來源：中醫大附醫官網與使用者回饋<br/>
+                                (已更新 I 棟 1F 與 兒童醫院 9F 診間資訊)<br/>
+                                <span className="text-slate-300 mt-2 block tracking-tight italic">© 本工具僅供就醫參考，實際位置請依現場公告為準</span>
+                            </p>
+                        </footer>
+                    </div>
+                </div>
+            );
+        }
+
+        // 初始化渲染
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+        
+        // 初始載入圖示
+        window.addEventListener('load', () => {
+            if (window.lucide) lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

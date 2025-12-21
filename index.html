@@ -1,0 +1,177 @@
+import React, { useState, useMemo } from 'react';
+import { Search, MapPin, Building2, Info, Navigation } from 'lucide-react';
+
+const clinicData = [
+  // 癌症中心大樓 (I棟)
+  { id: 31, room: "131-137", building: "癌症中心 (I棟)", floor: "1F", dept: "門診", note: "依使用者回饋修正" },
+  { id: 21, room: "281-290", building: "癌症中心 (I棟)", floor: "2F", dept: "癌症門診/綜合門診", note: "包含 286 診" },
+  { id: 22, room: "286", building: "癌症中心 (I棟)", floor: "2F", dept: "腫瘤/癌症中心門診", note: "使用者指定範例" },
+
+  // 兒童醫院 (B棟)
+  { id: 1, room: "120-127", building: "兒童醫院 (B棟)", floor: "1F", dept: "兒科門診", note: "" },
+  { id: 2, room: "210", building: "兒童醫院 (B棟)", floor: "2F", dept: "健兒門診", note: "" },
+  { id: 3, room: "211-216", building: "兒童醫院 (B棟)", floor: "2F", dept: "兒科門診", note: "" },
+  { id: 4, room: "217", building: "兒童醫院 (B棟)", floor: "2F", dept: "血友病中心門診", note: "" },
+  { id: 32, room: "921-929", building: "兒童醫院 (B棟)", floor: "9F", dept: "門診", note: "新增項目" },
+
+  // 立夫醫療大樓 (C棟)
+  { id: 5, room: "221-239", building: "立夫醫療大樓 (C棟)", floor: "2F", dept: "綜合門診", note: "包含風濕免疫、老人整合門診等" },
+  { id: 6, room: "250-260", building: "立夫醫療大樓 (C棟)", floor: "2F", dept: "綜合門診", note: "" },
+  { id: 7, room: "301-317", building: "立夫醫療大樓 (C棟)", floor: "3F", dept: "綜合門診", note: "" },
+  { id: 8, room: "320", building: "立夫醫療大樓 (C棟)", floor: "3F", dept: "門診", note: "" },
+  { id: 9, room: "B98", building: "立夫醫療大樓 (C棟)", floor: "5F", dept: "婦產科尿道動力室", note: "" },
+
+  // 復健醫療大樓 (G棟)
+  { id: 10, room: "171", building: "復健醫療大樓 (G棟)", floor: "1F", dept: "抹片室", note: "" },
+  { id: 11, room: "172-182", building: "復健醫療大樓 (G棟)", floor: "1F", dept: "婦產科、皮膚科門診", note: "" },
+  { id: 12, room: "C73", building: "復健醫療大樓 (G棟)", floor: "1F", dept: "婦產科內視鏡檢查室", note: "" },
+  { id: 13, room: "275-277", building: "復健醫療大樓 (G棟)", floor: "2F", dept: "復健部門診", note: "" },
+
+  // 急重症中心大樓 (H棟)
+  { id: 14, room: "100", building: "急重症中心 (H棟)", floor: "1F", dept: "國醫堂", note: "" },
+  { id: 15, room: "157", building: "急重症中心 (H棟)", floor: "1F", dept: "門診", note: "" },
+  { id: 16, room: "165-168", building: "急重症中心 (H棟)", floor: "1F", dept: "門診", note: "" },
+  { id: 17, room: "261-273", building: "急重症中心 (H棟)", floor: "2F", dept: "門診", note: "" },
+  { id: 18, room: "321-335", building: "急重症中心 (H棟)", floor: "3F", dept: "門診", note: "" },
+  { id: 19, room: "561-567", building: "急重症中心 (H棟)", floor: "5F", dept: "精神科門診", note: "" },
+  { id: 20, room: "613-618", building: "急重症中心 (H棟)", floor: "6F", dept: "腎臟醫學中心門診", note: "" },
+
+  // 眼耳鼻喉科醫學中心大樓 (K棟)
+  { id: 23, room: "801-809", building: "眼耳鼻喉大樓 (K棟)", floor: "1F", dept: "眼科門診", note: "" },
+  { id: 24, room: "812-828", building: "眼耳鼻喉大樓 (K棟)", floor: "2F", dept: "眼科門診", note: "" },
+  { id: 25, room: "831-840", building: "眼耳鼻喉大樓 (K棟)", floor: "3F", dept: "耳鼻喉部/全方位聽覺中心", note: "" },
+  { id: 26, room: "845-887", building: "眼耳鼻喉大樓 (K棟)", floor: "5F", dept: "牙醫部門診", note: "" },
+  { id: 27, room: "888-889", building: "眼耳鼻喉大樓 (K棟)", floor: "7F", dept: "近視雷射中心/門診", note: "" },
+
+  // 國際醫療教研服務中心 (J棟/質子中心)
+  { id: 28, room: "J101-J118", building: "質子治療中心 (J棟)", floor: "1F", dept: "綜合門診", note: "" },
+  { id: 29, room: "J001-J005", building: "質子治療中心 (J棟)", floor: "B1F", dept: "門診", note: "" },
+  { id: 30, room: "J021-J026", building: "質子治療中心 (J棟)", floor: "B2F", dept: "放射腫瘤部門診", note: "" },
+];
+
+export default function App() {
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredData = useMemo(() => {
+    if (!searchTerm) return clinicData;
+    const term = searchTerm.toLowerCase();
+    return clinicData.filter(item => 
+      item.room.toLowerCase().includes(term) || 
+      item.dept.toLowerCase().includes(term) ||
+      item.building.toLowerCase().includes(term) ||
+      item.floor.toLowerCase().includes(term)
+    );
+  }, [searchTerm]);
+
+  const checkSpecificRoom = (target) => {
+    if (!target) return null;
+    const cleanTarget = target.replace(/\D/g, '');
+    if (!cleanTarget) return null;
+    
+    const num = parseInt(cleanTarget);
+    return clinicData.find(item => {
+      const itemRoomClean = item.room.replace(/[^\d-]/g, '');
+      if (item.room.includes('-')) {
+        const parts = itemRoomClean.split('-');
+        const start = parseInt(parts[0]);
+        const end = parseInt(parts[1]);
+        return num >= start && num <= end;
+      }
+      return itemRoomClean === num.toString();
+    });
+  };
+
+  const exactMatch = useMemo(() => {
+    return checkSpecificRoom(searchTerm);
+  }, [searchTerm]);
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <header className="mb-8 text-center">
+          <h1 className="text-3xl font-bold text-slate-800 mb-2 flex items-center justify-center gap-2">
+            <Building2 className="text-blue-600" />
+            中醫大附醫 診間位置查詢
+          </h1>
+          <p className="text-slate-600">快速查找診間對應的大樓與樓層</p>
+        </header>
+
+        {/* Search Bar */}
+        <div className="relative mb-8">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-slate-400" />
+          </div>
+          <input
+            type="text"
+            className="block w-full pl-10 pr-3 py-4 border border-slate-200 rounded-2xl leading-5 bg-white shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-lg"
+            placeholder="輸入診間號碼 (如: 921 或 131) 或 科別關鍵字..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        {/* Highlight Exact Match */}
+        {exactMatch && searchTerm && (
+          <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-2xl p-6 shadow-md animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="flex items-start gap-4">
+              <div className="bg-blue-600 p-3 rounded-xl text-white">
+                <Navigation className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-blue-900 font-bold text-xl mb-1">精確匹配：診間 {searchTerm}</h3>
+                <p className="text-blue-800 text-lg">
+                  位於 <span className="font-bold">{exactMatch.building}</span> 的 <span className="font-bold">{exactMatch.floor}</span>
+                </p>
+                <p className="text-blue-600 mt-1 flex items-center gap-1">
+                  <Info className="h-4 w-4" /> {exactMatch.dept} {exactMatch.note ? `(${exactMatch.note})` : ''}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Results Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredData.length > 0 ? (
+            filteredData.map((item) => (
+              <div key={item.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-3">
+                  <span className="bg-slate-800 text-white px-3 py-1 rounded-full text-sm font-medium">
+                    診間 {item.room}
+                  </span>
+                  <span className="text-blue-600 font-bold text-lg">{item.floor}</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <Building2 className="h-4 w-4 text-slate-400" />
+                    <span className="font-semibold">{item.building}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <MapPin className="h-4 w-4 text-slate-400" />
+                    <span>{item.dept}</span>
+                  </div>
+                  {item.note && (
+                    <div className="mt-3 pt-3 border-t border-slate-50 text-xs text-slate-400 italic">
+                      {item.note}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full py-12 text-center text-slate-400">
+              <p className="text-lg">找不到相關診間資訊，請嘗試調整搜尋關鍵字</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer Info */}
+        <footer className="mt-12 pt-8 border-t border-slate-200 text-slate-500 text-sm text-center">
+          <p>資料來源：中國醫藥大學附設醫院官網樓層指南 (已更新兒童醫院 9F 資訊)</p>
+          <p className="mt-1">※ 實際診間位置請依醫院現場公告與門診單標示為準</p>
+        </footer>
+      </div>
+    </div>
+  );
+}
